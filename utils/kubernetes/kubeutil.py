@@ -60,15 +60,6 @@ FACTORS = {
     'Ei': 1024*1024*1024*1024*1024*1024,
 }
 
-CONTAINER_LABELS = [
-    'container_name',  # kubernetes container name
-    'id',  # cgroup path
-    'image',
-    'name',  # docker container name
-    'namespace',  # kubernetes namespace
-    'pod_name'
-]
-
 CONTAINER_LABELS_TO_TAGS = {
     'container_name': 'kube_container_name',
     'namespace': 'kube_namespace',
@@ -249,6 +240,7 @@ class KubeUtil:
         self.kubelet_host = self.kubelet_api_url.split(':')[1].lstrip('/')
         self.pods_list_url = urljoin(self.kubelet_api_url, KubeUtil.PODS_LIST_PATH)
         self.kube_health_url = urljoin(self.kubelet_api_url, KubeUtil.KUBELET_HEALTH_PATH)
+        self.machine_info_url = urljoin(self.kubelet_api_url, KubeUtil.MACHINE_INFO_PATH)
 
         # namespace of the agent pod
         try:
@@ -261,7 +253,6 @@ class KubeUtil:
         self.cadvisor_port = instance.get('port', KubeUtil.DEFAULT_CADVISOR_PORT)
         self.cadvisor_url = '%s://%s:%d' % (self.method, self.kubelet_host, self.cadvisor_port)
         self.metrics_url = urljoin(self.cadvisor_url, KubeUtil.METRICS_PATH)
-        self.machine_info_url = urljoin(self.cadvisor_url, KubeUtil.MACHINE_INFO_PATH)
 
     def _locate_kubelet(self, instance):
         """
@@ -556,36 +547,6 @@ class KubeUtil:
                 self._node_ip = status.get('hostIP', '')
                 self._node_name = spec.get('nodeName', '')
                 break
-
-    def _is_container_metric(self, metric):
-        """
-        Return whether a metric is about a container or not.
-        It can be about pods, or even higher levels in the cgroup hierarchy
-        and we don't want to report on that.
-        """
-        for l in CONTAINER_LABELS:
-            if l == 'container_name':
-                for ml in metric.label:
-                    if ml.name == l:
-                        if ml.value == 'POD':
-                            return False
-            elif l not in [ml.name for ml in metric.label]:
-                return False
-        return True
-
-    def _is_pod_metric(self, metric):
-        """
-        Return whether a metric is about a pod or not.
-        It can be about pods, or even higher levels in the cgroup hierarchy
-        and we don't want to report on that.
-        """
-        for l in CONTAINER_LABELS:
-            if l == 'container_name':
-                for ml in metric.label:
-                    if ml.name == l:
-                        if ml.value == 'POD':
-                            return True
-        return False
 
     def extract_image_tags(self, image_label):
         """Get the image tags using docker_util"""
